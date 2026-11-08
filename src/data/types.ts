@@ -5,6 +5,7 @@ export interface PlacedItem {
   kind: FurnitureKind
   x: number
   y: number
+  rot?: 0 | 90 | 180 | 270
 }
 
 export interface RoomState {
@@ -13,6 +14,7 @@ export interface RoomState {
   name: string
   wall: string
   floor: string
+  themeId?: string
   items: PlacedItem[]
 }
 
@@ -21,6 +23,8 @@ export interface SoftSim {
   name: string
   mood: number
   lastCare: number
+  vibe?: string
+  energy?: number
 }
 
 export interface FriendlyNote {
@@ -40,13 +44,41 @@ export interface HouseState {
   sim: SoftSim | null
   notes: FriendlyNote[]
   isPlayer: boolean
+  code?: string
+}
+
+export interface StreetEventState {
+  id: 'parade'
+  title: string
+  goal: number
+  progress: number
+  completed: boolean
+  contributed: number
 }
 
 export interface GameSave {
-  version: 1
+  version: 2
   player: HouseState
   friends: HouseState[]
   invited: string[]
-  streetEvent: 'none' | 'parade' | 'porch'
+  streetEvent: StreetEventState
   lastVisit: string | null
+  importedCodes: string[]
+  snapGrid: boolean
+}
+
+/** Compact payload embedded in share codes / links */
+export interface SharePayload {
+  v: 1
+  n: string
+  o: string
+  c: string
+  rooms: Array<{
+    k: RoomKind
+    w: string
+    f: string
+    t?: string
+    items: Array<{ k: FurnitureKind; x: number; y: number; r?: 0 | 90 | 180 | 270 }>
+  }>
+  sim?: { t: SoftSim['type']; n: string }
 }
