@@ -13,35 +13,43 @@ export function InviteModal({ game }: { game: GameApi }) {
       >
         <h2 id="invite-title">Friends & family only</h2>
         <p style={{ marginTop: 0, color: 'var(--ink-soft)', fontWeight: 700 }}>
-          Simulated invites for this MVP — no open chat, no strangers.
+          Simulated neighbors on this street — invite to visit. Or use a house code.
         </p>
 
-        {save.friends.map((friend) => {
-          const invited = save.invited.includes(friend.id)
-          return (
-            <div className="friend-row" key={friend.id}>
-              <div>
-                <strong>{friend.ownerName}</strong>
-                <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)' }}>
-                  {friend.houseName}
+        {save.friends
+          .filter((f) => !f.id.startsWith('shared-'))
+          .map((friend) => {
+            const invited = save.invited.includes(friend.id)
+            return (
+              <div className="friend-row" key={friend.id}>
+                <div>
+                  <strong>{friend.ownerName}</strong>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--ink-soft)' }}>
+                    {friend.houseName}
+                    {friend.code ? ` · ${friend.code}` : ''}
+                  </div>
                 </div>
+                {invited ? (
+                  <button className="btn small teal" onClick={() => enterHouse(friend.id)}>
+                    Visit
+                  </button>
+                ) : (
+                  <button className="btn small primary" onClick={() => inviteFriend(friend.id)}>
+                    Invite
+                  </button>
+                )}
               </div>
-              {invited ? (
-                <button className="btn small teal" onClick={() => enterHouse(friend.id)}>
-                  Visit
-                </button>
-              ) : (
-                <button className="btn small primary" onClick={() => inviteFriend(friend.id)}>
-                  Invite
-                </button>
-              )}
-            </div>
-          )
-        })}
+            )
+          })}
+
+        <div className="dock" style={{ marginTop: 8 }}>
+          <button className="btn small" onClick={() => setView({ name: 'share' })}>
+            House codes
+          </button>
+        </div>
 
         <div className="safe-note">
-          Kid-safe by design: canned friendly notes only. Parents can understand the
-          closed street.
+          Kid-safe by design: canned friendly notes only. Parents can understand the closed street.
         </div>
 
         <div className="dock" style={{ marginTop: 14, justifyContent: 'flex-end' }}>

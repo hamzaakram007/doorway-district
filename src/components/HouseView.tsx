@@ -1,14 +1,19 @@
 import { useRef } from 'react'
 import {
+  CATEGORY_LABELS,
   FLOOR_SWATCHES,
   FRIENDLY_NOTES,
   FURNITURE_DEFS,
   HOUSE_COLORS,
   ROOM_DEFS,
+  THEME_PACKS,
   WALL_SWATCHES,
+  type FurnitureCategory,
 } from '../data/catalog'
 import type { GameApi } from '../hooks/useGame'
 import { SoftSimCard } from './SoftSim'
+
+const FILTERS: Array<FurnitureCategory | 'all'> = ['all', 'cozy', 'fun', 'garden', 'event']
 
 export function HouseView({ game }: { game: GameApi }) {
   const {
@@ -17,18 +22,26 @@ export function HouseView({ game }: { game: GameApi }) {
     activeRoom,
     selectedItem,
     placing,
+    furnitureFilter,
+    ghost,
     goStreet,
     setActiveRoom,
     setPlacing,
     setSelectedItem,
+    setFurnitureFilter,
+    setGhost,
     placeItemAt,
     moveItem,
+    rotateSelected,
     removeItem,
     paintRoom,
+    applyTheme,
     addRoom,
     renameHouse,
     setHouseColor,
     leaveNote,
+    undoPlace,
+    toggleSnap,
     save,
   } = game
 
@@ -39,6 +52,9 @@ export function HouseView({ game }: { game: GameApi }) {
 
   const editing = view.mode === 'edit'
   const ownedKinds = new Set(currentHouse.rooms.map((r) => r.kind))
+  const palette = FURNITURE_DEFS.filter(
+    (f) => furnitureFilter === 'all' || f.category === furnitureFilter,
+  )
 
   const toPct = (clientX: number, clientY: number) => {
     const el = stageRef.current
@@ -60,6 +76,16 @@ export function HouseView({ game }: { game: GameApi }) {
           <span style={{ fontWeight: 800 }}>
             {editing ? 'Decorating' : 'Visiting'} {currentHouse.houseName}
           </span>
+          {editing && (
+            <>
+              <button className={`chip${save.snapGrid ? ' active' : ''}`} onClick={toggleSnap}>
+                Snap {save.snapGrid ? 'on' : 'off'}
+              </button>
+              <button className="chip" onClick={undoPlace}>
+                Undo
+              </button>
+            </>
+          )}
         </div>
 
         <div className="chip-row" style={{ marginBottom: 10 }}>
@@ -78,7 +104,7 @@ export function HouseView({ game }: { game: GameApi }) {
         </div>
 
         <div
-          className="room-stage"
+          className={`room-stage${placing && editing ? ' placing' : ''}`}
           ref={stageRef}
           onPointerDown={(e) => {
             if ((e.target as HTMLElement).closest('.placed')) return
@@ -87,8 +113,9 @@ export function HouseView({ game }: { game: GameApi }) {
             else setSelectedItem(null)
           }}
           onPointerMove={(e) => {
-            if (!dragId.current || !editing) return
             const { x, y } = toPct(e.clientX, e.clientY)
+            if (editing && placing) setGhost({ x, y })
+            if (!dragId.current || !editing) return
             moveItem(dragId.current, x, y)
           }}
           onPointerUp={() => {
@@ -96,30 +123,59 @@ export function HouseView({ game }: { game: GameApi }) {
           }}
           onPointerLeave={() => {
             dragId.current = null
+            setGhost(null)
           }}
         >
           <div className="room-wall" style={{ background: activeRoom.wall }} />
           <div className="room-baseboard" />
           <div className="room-floor" style={{ background: activeRoom.floor }} />
+          {save.snapGrid && editing && <div className="grid-overlay" aria-hidden />}
 
           <div className="room-chrome">
             <div className="chip" style={{ pointerEvents: 'none' }}>
               {ROOM_DEFS.find((d) => d.id === activeRoom.kind)?.emoji} {activeRoom.name}
+              {activeRoom.themeId
+                ? ` · ${THEME_PACKS.find((t) => t.id === activeRoom.themeId)?.name ?? ''}`
+                : ''}
             </div>
             {placing && editing && (
-              <div className="chip" style={{ background: '#fff1ea' }}>
-                Tap room to place {FURNITURE_DEFS.find((f) => f.id === placing)?.name}
+              <div className="chip place-hint">
+                Tap to place {FURNITURE_DEFS.find((f) => f.id === placing)?.name}
               </div>
             )}
           </div>
 
+          {ghost && placing && editing && (
+            <div
+              className="placed ghost"
+              style={{
+                left: `${ghost.x}%`,
+                top: `${ghost.y}%`,
+                width: `${FURNITURE_DEFS.find((f) => f.id === placing)?.w ?? 10}%`,
+                height: `${FURNITURE_DEFS.find((f) => f.id === placing)?.h ?? 10}%`,
+              }}
+              aria-hidden
+            >
+              {FURNITURE_DEFS.find((f) => f.id === placing)?.emoji}
+            </div>
+          )}
+
           {activeRoom.items.map((item) => {
             const def = FURNITURE_DEFS.find((f) => f.id === item.kind)!
+            const rot = item.rot ?? 0
             return (
               <div
                 key={item.id}
-                className={`placed${selectedItem === item.id ? ' selected' : ''}`}
-                style={{ left: `${item.x}%`, top: `${item.y}%`, width: `${def.w}%`, height: `${def.h}%` }}
+                className={`placed${selectedItem === item.id ? ' selected' : ''} pop-in`}
+                style={{
+                  left: `${item.x}%`,
+                  top: `${item.y}%`,
+                  width: `${def.w}%`,
+                  height: `${def.h}%`,
+                  transform: `translate(-50%, -50%) rotate(${rot}deg)${
+                    selectedItem === item.id ? ' scale(1.08)' : ''
+                  }`,
+                }}
                 onPointerDown={(e) => {
                   e.stopPropagation()
                   setSelectedItem(item.id)
@@ -165,34 +221,59 @@ export function HouseView({ game }: { game: GameApi }) {
         {editing && (
           <div className="panel">
             <h3 className="section-title">Furniture</h3>
+            <div className="chip-row" style={{ marginBottom: 8 }}>
+              {FILTERS.map((f) => (
+                <button
+                  key={f}
+                  className={`chip${furnitureFilter === f ? ' active' : ''}`}
+                  onClick={() => setFurnitureFilter(f)}
+                >
+                  {f === 'all' ? 'All' : CATEGORY_LABELS[f]}
+                </button>
+              ))}
+            </div>
             <div className="palette">
-              {FURNITURE_DEFS.map((f) => (
+              {palette.map((f) => (
                 <button
                   key={f.id}
                   className={`palette-item${placing === f.id ? ' active' : ''}`}
-                  onClick={() => setPlacing(placing === f.id ? null : f.id)}
+                  onClick={() => {
+                    setPlacing(placing === f.id ? null : f.id)
+                    setGhost(null)
+                  }}
                 >
                   <span>{f.emoji}</span>
                   {f.name}
+                  {f.eventBoost ? <em className="boost">+{f.eventBoost}</em> : null}
                 </button>
               ))}
             </div>
             {selectedItem && (
-              <button
-                className="btn small"
-                style={{ marginTop: 10 }}
-                onClick={() => removeItem(selectedItem)}
-              >
-                Remove selected
-              </button>
+              <div className="dock" style={{ marginTop: 10 }}>
+                <button className="btn small" onClick={rotateSelected}>
+                  Rotate
+                </button>
+                <button className="btn small" onClick={() => removeItem(selectedItem)}>
+                  Remove
+                </button>
+              </div>
             )}
           </div>
         )}
 
         {editing && (
           <div className="panel">
-            <h3 className="section-title">Paint & expand</h3>
-            <div style={{ fontWeight: 800, marginBottom: 6 }}>Walls</div>
+            <h3 className="section-title">Themes & paint</h3>
+            <div className="theme-grid">
+              {THEME_PACKS.map((t) => (
+                <button key={t.id} className="theme-card" onClick={() => applyTheme(t.id)}>
+                  <span>{t.emoji}</span>
+                  <strong>{t.name}</strong>
+                  <i style={{ background: `linear-gradient(90deg, ${t.wall}, ${t.floor})` }} />
+                </button>
+              ))}
+            </div>
+            <div style={{ fontWeight: 800, margin: '10px 0 6px' }}>Walls</div>
             <div className="swatches">
               {WALL_SWATCHES.map((c) => (
                 <button
@@ -265,11 +346,6 @@ export function HouseView({ game }: { game: GameApi }) {
                 </div>
               )
             })}
-            {editing && save.lastVisit && (
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--ink-soft)' }}>
-                Tip: visit a friend, leave a note, then check back here.
-              </div>
-            )}
           </div>
         </div>
       </div>

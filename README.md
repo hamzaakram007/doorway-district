@@ -1,6 +1,8 @@
 # Doorway District
 
-Kid-safe house decorating MVP: build rooms, place furniture, invite simulated friends, visit their houses, and leave canned friendly notes (no open chat).
+Kid-safe house decorating game: build rooms, paint themes, invite simulated neighbors, share house codes/links, and join a street parade float — no open chat.
+
+Live: https://doorway-district.vercel.app
 
 ## Run
 
@@ -9,16 +11,21 @@ npm install
 npm run dev
 ```
 
-## MVP features
+## Features (v2)
 
-- Place / expand rooms and furniture; paint walls & floors; instant `localStorage` save
-- Street with your house + friend houses (Mia, Jay, Sam)
-- Invite / visit flow — closed circle only
-- Soft pet or plant that reacts lightly to décor / care
-- Seasonal street parade banner (cosmetic)
+- **Richer building** — 8 room types, 26 furniture pieces, theme packs, wall/floor paint, snap grid, rotate, undo, ghost placement
+- **Visit loop** — 6 simulated neighbors + shareable house codes/links (`#house=DD1…` or short codes like `MIANEST`)
+- **Soft companion** — pet or plant with reactions, speech bubbles, gentle mood drift (floored — never punishing)
+- **Parade Float Weekend** — shared street goal; place parade décor or leave visit notes to progress
+- **Mobile-first** — golden-hour street look, safe-area padding, expressive motions (clouds, float, companion)
 
-## Not in this MVP
+## Scripts
 
-- Real multiplayer / accounts / parent approval backend
-- Free-text chat
-- Full seasonal event systems
+```bash
+npm run build
+npm run preview
+```
+
+## Safety defaults
+
+Closed circle invites, canned sticker notes only, no free-text chat, no stranger lobby.
